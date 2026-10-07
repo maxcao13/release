@@ -29,6 +29,21 @@ resources:
       cpu: 100m
       memory: 200Mi
 tests:
+- as: unit
+  commands: |
+    set -euo pipefail
+    export GOCACHE=/tmp/gocache
+    export GOBIN=/tmp/bin
+    # Pin setup-envtest to a revision compatible with Go 1.23 on older release branches.
+    GOFLAGS=-mod=mod go install sigs.k8s.io/controller-runtime/tools/setup-envtest@32e5e9e948a572779280969aaaf7db92f76d8252
+    # Match the local API server to this branch's Kubernetes dependencies.
+    K8S_VERSION="$(go list -m -f '{{.Version}}' k8s.io/api | awk -F '[v.]' '{printf "1.%d.x", $3}')"
+    export K8S_VERSION
+    KUBEBUILDER_ASSETS="$("${GOBIN}/setup-envtest" use -p path "${K8S_VERSION}" --bin-dir=/tmp/envtest)"
+    export KUBEBUILDER_ASSETS
+    make test
+  container:
+    from: bin
 - always_run: false
   as: e2e-aws
   steps:
